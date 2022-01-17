@@ -377,13 +377,13 @@ impl VhostUserVsockThread {
         while let Some(mut avail_desc) = queue.iter().map_err(|_| Error::IterateQueue)?.next() {
             used_any = true;
             let atomic_mem = atomic_mem.clone();
-
             let head_idx = avail_desc.head_index();
+
             let used_len =
-                match VsockPacket::from_rx_virtq_head(&mut avail_desc, atomic_mem.clone()) {
+                match VsockPacket::from_rx_virtq_chain(&atomic_mem, &mut avail_desc) {
                     Ok(mut pkt) => {
                         if self.thread_backend.recv_pkt(&mut pkt).is_ok() {
-                            pkt.hdr().len() + pkt.len() as usize
+                            pkt.header().len() + pkt.len() as usize
                         } else {
                             queue.iter().unwrap().go_to_previous_position();
                             break;

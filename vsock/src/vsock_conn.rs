@@ -50,7 +50,7 @@ pub struct VsockConnection<S> {
     pub tx_buf: LocalTxBuf,
 }
 
-impl<S: AsRawFd + Read + Write, B: BitmapSlice> VsockConnection<S> {
+impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     /// Create a new vsock connection object for locally i.e host-side
     /// inititated connections.
     pub fn new_local_init(
@@ -118,7 +118,9 @@ impl<S: AsRawFd + Read + Write, B: BitmapSlice> VsockConnection<S> {
     /// Process a vsock packet that is meant for this connection.
     /// Forward data to the host-side application if the vsock packet
     /// contains a RW operation.
-    pub(crate) fn recv_pkt(&mut self, pkt: &mut VsockPacket<B>) -> Result<()> {
+    pub(crate) fn recv_pkt<'a, B: BitmapSlice>
+        (&mut self, pkt: &mut VsockPacket<'a, B>)
+         -> Result<()> {
         // Initialize all fields in the packet header
         self.init_pkt(pkt);
 
@@ -199,7 +201,9 @@ impl<S: AsRawFd + Read + Write, B: BitmapSlice> VsockConnection<S> {
     ///
     /// Returns:
     /// - always `Ok(())` to indicate that the packet has been consumed
-    pub(crate) fn send_pkt(&mut self, pkt: &VsockPacket) -> Result<()> {
+    pub(crate) fn send_pkt<'a, B: BitmapSlice>
+        (&mut self, pkt:  &VsockPacket<'a, B>) -> Result<()>
+    {
         // Update peer credit information
         self.peer_buf_alloc = pkt.buf_alloc();
         self.peer_fwd_cnt = Wrapping(pkt.fwd_cnt());
@@ -305,7 +309,10 @@ impl<S: AsRawFd + Read + Write, B: BitmapSlice> VsockConnection<S> {
     }
 
     /// Initialize all header fields in the vsock packet.
-    fn init_pkt<'a>(&self, pkt: &'a mut VsockPacket<B>) -> &'a mut VsockPacket<B> {
+    fn init_pkt<'a, B:BitmapSlice>
+        (&self, pkt: &'a mut VsockPacket<'a, B>) ->
+        &'a mut VsockPacket<'a, B>
+    {
         // Zero out the packet header
         // for b in pkt.hdr_mut() {
         //     *b = 0;

@@ -67,8 +67,8 @@ impl VsockThreadBackend {
     /// Returns:
     /// - `Ok(())` if the packet was successfully filled in
     /// - `Err(Error::EmptyBackendRxQ) if there was no available data
-    pub(crate) fn recv_pkt(&mut self, pkt: &mut
-                           VsockPacket<BitmapSlice + WithBitmapSlice>) -> Result<()> {
+    pub(crate) fn recv_pkt<'a, B: BitmapSlice>
+        (&mut self, pkt: &mut VsockPacket<'a, B>) -> Result<()> {
         // Pop an event from the backend_rxq
         let key = match self.backend_rxq.pop_front() {
             Some(cmk) => cmk,
@@ -127,11 +127,12 @@ impl VsockThreadBackend {
     ///
     /// Returns:
     /// - always `Ok(())` if packet has been consumed correctly
-    pub(crate) fn send_pkt(&mut self, pkt: &VsockPacket) -> Result<()> {
+    pub(crate) fn send_pkt<'a, B: BitmapSlice>
+        (&mut self, pkt: &VsockPacket<'a, B>) -> Result<()> {
         let key = ConnMapKey::new(pkt.dst_port(), pkt.src_port());
 
         // TODO: Rst if packet has unsupported type
-        if pkt.pkt_type() != VSOCK_TYPE_STREAM {
+        if pkt.type_() != VSOCK_TYPE_STREAM {
             info!("vsock: dropping packet of unknown type");
             return Ok(());
         }
@@ -140,7 +141,7 @@ impl VsockThreadBackend {
         if pkt.dst_cid() != VSOCK_HOST_CID {
             info!(
                 "vsock: dropping packet for cid other than host: {:?}",
-                pkt.hdr()
+                pkt.header()
             );
 
             return Ok(());
@@ -196,7 +197,8 @@ impl VsockThreadBackend {
     /// Attempts to connect to a host side unix socket listening on a path
     /// corresponding to the destination port as follows:
     /// - "{self.host_sock_path}_{local_port}""
-    fn handle_new_guest_conn(&mut self, pkt: &VsockPacket) {
+    fn handle_new_guest_conn<'a, B: BitmapSlice>
+        (&mut self, pkt: &VsockPacket<'a, B>) {
         let port_path = format!("{}_{}", self.host_socket_path, pkt.dst_port());
 
         UnixStream::connect(port_path)
@@ -207,7 +209,8 @@ impl VsockThreadBackend {
     }
 
     /// Wrapper to add new connection to relevant HashMaps.
-    fn add_new_guest_conn(&mut self, stream: UnixStream, pkt: &VsockPacket) -> Result<()> {
+    fn add_new_guest_conn<'a, B: BitmapSlice>
+        (&mut self, stream: UnixStream, pkt: &VsockPacket<'a, B>) -> Result<()> {
         let stream_fd = stream.as_raw_fd();
         self.listener_map
             .insert(stream_fd, ConnMapKey::new(pkt.dst_port(), pkt.src_port()));
