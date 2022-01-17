@@ -1,7 +1,6 @@
 #![deny(missing_docs)]
 
 use super::{
-    packet::*,
     rxops::*,
     vhu_vsock::{
         ConnMapKey, Error, Result, VSOCK_HOST_CID, VSOCK_OP_REQUEST, VSOCK_OP_RST,
@@ -18,6 +17,8 @@ use std::{
         prelude::{AsRawFd, FromRawFd, RawFd},
     },
 };
+use virtio_vsock::packet::VsockPacket;
+use vm_memory::bitmap::{BitmapSlice, WithBitmapSlice};
 
 // TODO: convert UnixStream to Arc<Mutex<UnixStream>>
 pub struct VsockThreadBackend {
@@ -38,6 +39,8 @@ pub struct VsockThreadBackend {
 }
 
 impl VsockThreadBackend {
+    // type B = BitmapSlice;
+
     /// New instance of VsockThreadBackend.
     pub fn new(host_socket_path: String, epoll_fd: i32) -> Self {
         Self {
@@ -64,7 +67,8 @@ impl VsockThreadBackend {
     /// Returns:
     /// - `Ok(())` if the packet was successfully filled in
     /// - `Err(Error::EmptyBackendRxQ) if there was no available data
-    pub(crate) fn recv_pkt(&mut self, pkt: &mut VsockPacket) -> Result<()> {
+    pub(crate) fn recv_pkt(&mut self, pkt: &mut
+                           VsockPacket<BitmapSlice + WithBitmapSlice>) -> Result<()> {
         // Pop an event from the backend_rxq
         let key = match self.backend_rxq.pop_front() {
             Some(cmk) => cmk,

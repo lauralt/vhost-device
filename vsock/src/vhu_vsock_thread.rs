@@ -1,5 +1,4 @@
 use super::{
-    packet::*,
     rxops::*,
     thread_backend::*,
     vhu_vsock::{ConnMapKey, Error, Result, VhostUserVsockBackend, BACKEND_EVENT, VSOCK_HOST_CID},
@@ -24,6 +23,7 @@ use vmm_sys_util::{
     epoll::EventSet,
     eventfd::{EventFd, EFD_NONBLOCK},
 };
+use virtio_vsock::packet::VsockPacket;
 
 type ArcVhostBknd = Arc<RwLock<VhostUserVsockBackend>>;
 

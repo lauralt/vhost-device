@@ -22,6 +22,7 @@ virtio-bindings = ">=0.1"
 virtio-queue = "0.1"
 vm-memory = "0.7"
 vmm-sys-util = "=0.9.0"
+virtio-vsock = { git = "https://github.com/lauralt/vm-virtio", branch = "vsock_packet" }
 
 [dev-dependencies]
 virtio-queue = { version = "0.1", features = ["test-utils"] }

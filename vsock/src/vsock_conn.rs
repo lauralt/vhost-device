@@ -1,5 +1,4 @@
 use super::{
-    packet::*,
     rxops::*,
     rxqueue::*,
     txbuf::*,
@@ -16,6 +15,8 @@ use std::{
     num::Wrapping,
     os::unix::prelude::{AsRawFd, RawFd},
 };
+use virtio_vsock::packet::VsockPacket;
+use vm_memory::bitmap::BitmapSlice;
 
 #[derive(Debug)]
 pub struct VsockConnection<S> {
@@ -49,7 +50,7 @@ pub struct VsockConnection<S> {
     pub tx_buf: LocalTxBuf,
 }
 
-impl<S: AsRawFd + Read + Write> VsockConnection<S> {
+impl<S: AsRawFd + Read + Write, B: BitmapSlice> VsockConnection<S> {
     /// Create a new vsock connection object for locally i.e host-side
     /// inititated connections.
     pub fn new_local_init(
@@ -117,7 +118,7 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     /// Process a vsock packet that is meant for this connection.
     /// Forward data to the host-side application if the vsock packet
     /// contains a RW operation.
-    pub(crate) fn recv_pkt(&mut self, pkt: &mut VsockPacket) -> Result<()> {
+    pub(crate) fn recv_pkt(&mut self, pkt: &mut VsockPacket<B>) -> Result<()> {
         // Initialize all fields in the packet header
         self.init_pkt(pkt);
 
@@ -304,11 +305,11 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     }
 
     /// Initialize all header fields in the vsock packet.
-    fn init_pkt<'a>(&self, pkt: &'a mut VsockPacket) -> &'a mut VsockPacket {
+    fn init_pkt<'a>(&self, pkt: &'a mut VsockPacket<B>) -> &'a mut VsockPacket<B> {
         // Zero out the packet header
-        for b in pkt.hdr_mut() {
-            *b = 0;
-        }
+        // for b in pkt.hdr_mut() {
+        //     *b = 0;
+        // }
 
         pkt.set_src_cid(self.local_cid)
             .set_dst_cid(self.guest_cid)
