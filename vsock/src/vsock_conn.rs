@@ -16,7 +16,7 @@ use std::{
     os::unix::prelude::{AsRawFd, RawFd},
 };
 use virtio_vsock::packet::VsockPacket;
-use vm_memory::bitmap::BitmapSlice;
+use vm_memory::{Bytes, bitmap::BitmapSlice};
 
 #[derive(Debug)]
 pub struct VsockConnection<S> {
@@ -119,7 +119,7 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     /// Forward data to the host-side application if the vsock packet
     /// contains a RW operation.
     pub(crate) fn recv_pkt<'a, B: BitmapSlice>
-        (&mut self, pkt: &mut VsockPacket<'a, B>)
+        (&mut self, pkt: &'a mut VsockPacket<'a, B>)
          -> Result<()> {
         // Initialize all fields in the packet header
         self.init_pkt(pkt);
@@ -144,7 +144,8 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
                     pkt.set_op(VSOCK_OP_CREDIT_REQUEST);
                     return Ok(());
                 }
-                let buf = pkt.buf_mut().ok_or(Error::PktBufMissing)?;
+
+                let buf = pkt.data().ok_or(Error::PktBufMissing)?;
 
                 // Perform a credit check to find the maximum read size. The read
                 // data must fit inside a packet buffer and be within peer's
@@ -152,7 +153,7 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
                 let max_read_len = std::cmp::min(buf.len(), self.peer_avail_credit());
 
                 // Read data from the stream directly into the buffer
-                if let Ok(read_cnt) = self.stream.read(&mut buf[..max_read_len]) {
+                if let Ok(read_cnt) = buf.read_from(0, &mut self.stream, max_read_len) {
                     if read_cnt == 0 {
                         // If no data was read then the stream was closed down unexpectedly.
                         // Send a shutdown packet to the guest-side application.
@@ -218,7 +219,7 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
             }
             VSOCK_OP_RW => {
                 // Data has to be written to the host-side stream
-                if pkt.buf().is_none() {
+                if pkt.data().is_none() {
                     info!(
                         "Dropping empty packet from guest (lp={}, pp={})",
                         self.local_port, self.peer_port

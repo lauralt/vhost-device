@@ -15,10 +15,11 @@ use std::{
         net::{UnixListener, UnixStream},
         prelude::{AsRawFd, FromRawFd, RawFd},
     },
+    ops::Deref,
     sync::{Arc, RwLock},
 };
 use vhost_user_backend::{VringEpollHandler, VringRwLock, VringT};
-use vm_memory::{GuestMemoryAtomic, GuestMemoryMmap};
+use vm_memory::{GuestAddressSpace, GuestMemoryAtomic, GuestMemoryMmap};
 use vmm_sys_util::{
     epoll::EventSet,
     eventfd::{EventFd, EFD_NONBLOCK},
@@ -378,9 +379,10 @@ impl VhostUserVsockThread {
             used_any = true;
             let atomic_mem = atomic_mem.clone();
             let head_idx = avail_desc.head_index();
+            let mem = atomic_mem.memory().deref();
 
             let used_len =
-                match VsockPacket::from_rx_virtq_chain(&atomic_mem, &mut avail_desc) {
+                match VsockPacket::from_rx_virtq_chain(mem, &mut avail_desc) {
                     Ok(mut pkt) => {
                         if self.thread_backend.recv_pkt(&mut pkt).is_ok() {
                             pkt.header().len() + pkt.len() as usize
@@ -477,9 +479,10 @@ impl VhostUserVsockThread {
         {
             used_any = true;
             let atomic_mem = atomic_mem.clone();
-
             let head_idx = avail_desc.head_index();
-            let pkt = match VsockPacket::from_tx_virtq_head(&mut avail_desc, atomic_mem.clone()) {
+            let mem = atomic_mem.memory().deref();
+
+            let pkt = match VsockPacket::from_tx_virtq_chain(mem, &mut avail_desc) {
                 Ok(pkt) => pkt,
                 Err(e) => {
                     dbg!("vsock: error reading TX packet: {:?}", e);

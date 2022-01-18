@@ -18,7 +18,7 @@ use std::{
     },
 };
 use virtio_vsock::packet::VsockPacket;
-use vm_memory::bitmap::{BitmapSlice, WithBitmapSlice};
+use vm_memory::bitmap::BitmapSlice;
 
 // TODO: convert UnixStream to Arc<Mutex<UnixStream>>
 pub struct VsockThreadBackend {
@@ -68,7 +68,7 @@ impl VsockThreadBackend {
     /// - `Ok(())` if the packet was successfully filled in
     /// - `Err(Error::EmptyBackendRxQ) if there was no available data
     pub(crate) fn recv_pkt<'a, B: BitmapSlice>
-        (&mut self, pkt: &mut VsockPacket<'a, B>) -> Result<()> {
+        (&mut self, pkt: &'a mut VsockPacket<'a, B>) -> Result<()> {
         // Pop an event from the backend_rxq
         let key = match self.backend_rxq.pop_front() {
             Some(cmk) => cmk,
