@@ -377,14 +377,16 @@ impl VhostUserVsockThread {
 
         while let Some(mut avail_desc) = queue.iter().map_err(|_| Error::IterateQueue)?.next() {
             used_any = true;
-            let atomic_mem = atomic_mem.clone();
+            // let atomic_mem = atomic_mem.clone();
             let head_idx = avail_desc.head_index();
-            let mem = atomic_mem.memory().deref();
+            let mem = atomic_mem.clone().memory();
 
             let used_len =
-                match VsockPacket::from_rx_virtq_chain(mem, &mut avail_desc) {
-                    Ok(mut pkt) => {
-                        if self.thread_backend.recv_pkt(&mut pkt).is_ok() {
+                match VsockPacket::from_rx_virtq_chain(mem.deref(), &mut avail_desc) {
+                    Ok(pkt) => {
+                        let mut mpkt = pkt;
+                        let res = self.thread_backend.recv_pkt(&mut mpkt);
+                        if res.is_ok() {
                             pkt.header().len() + pkt.len() as usize
                         } else {
                             queue.iter().unwrap().go_to_previous_position();
@@ -478,11 +480,10 @@ impl VhostUserVsockThread {
             .next()
         {
             used_any = true;
-            let atomic_mem = atomic_mem.clone();
             let head_idx = avail_desc.head_index();
-            let mem = atomic_mem.memory().deref();
+            let mem = atomic_mem.clone().memory();
 
-            let pkt = match VsockPacket::from_tx_virtq_chain(mem, &mut avail_desc) {
+            let pkt = match VsockPacket::from_tx_virtq_chain(mem.deref(), &mut avail_desc) {
                 Ok(pkt) => pkt,
                 Err(e) => {
                     dbg!("vsock: error reading TX packet: {:?}", e);

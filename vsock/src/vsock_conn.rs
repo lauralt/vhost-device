@@ -16,7 +16,7 @@ use std::{
     os::unix::prelude::{AsRawFd, RawFd},
 };
 use virtio_vsock::packet::VsockPacket;
-use vm_memory::{Bytes, bitmap::BitmapSlice};
+use vm_memory::{Bytes, VolatileSlice, bitmap::BitmapSlice};
 
 #[derive(Debug)]
 pub struct VsockConnection<S> {
@@ -219,19 +219,21 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
             }
             VSOCK_OP_RW => {
                 // Data has to be written to the host-side stream
-                if pkt.data().is_none() {
-                    info!(
-                        "Dropping empty packet from guest (lp={}, pp={})",
-                        self.local_port, self.peer_port
-                    );
-                    return Ok(());
-                }
-
-                let buf_slice = &pkt.buf().unwrap()[..(pkt.len() as usize)];
-                if let Err(err) = self.send_bytes(buf_slice) {
-                    // TODO: Terminate this connection
-                    dbg!("err:{:?}", err);
-                    return Ok(());
+                match pkt.data() {
+                    None => {
+                        info!(
+                            "Dropping empty packet from guest (lp={}, pp={})",
+                            self.local_port, self.peer_port
+                        );
+                        return Ok(());
+                    }
+                    Some(buf) => {
+                        if let Err(err) = self.send_bytes(buf) {
+                            // TODO: Terminate this connection
+                            dbg!("err:{:?}", err);
+                            return Ok(());
+                        }
+                    }
                 }
             }
             VSOCK_OP_CREDIT_UPDATE => {
@@ -277,23 +279,27 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     /// Returns:
     /// - Ok(cnt) where cnt is the number of bytes written to the stream
     /// - Err(Error::UnixWrite) if there was an error writing to the stream
-    fn send_bytes(&mut self, buf: &[u8]) -> Result<()> {
+    fn send_bytes <'a, B: BitmapSlice>
+        (&self, buf: &VolatileSlice<B>) -> Result<()> {
         if !self.tx_buf.is_empty() {
+            let bytes = buf.as_ptr();
             // Data is already present in the buffer and the backend
             // is waiting for a EPOLLOUT event to flush it
-            return self.tx_buf.push(buf);
+            return self.tx_buf.push(bytes);
         }
 
+        // if let Ok(read_cnt) = buf.read_from(0, &mut self.stream, max_read_len) {
+
         // Write data to the stream
-        let written_count = match self.stream.write(buf) {
+
+        let written_count = match buf.write_to(0, &mut self.stream, buf.len()) {
             Ok(cnt) => cnt,
             Err(e) => {
-                if e.kind() == ErrorKind::WouldBlock {
-                    0
-                } else {
-                    println!("send_bytes error: {:?}", e);
-                    return Err(Error::UnixWrite);
-                }
+                // if e.kind() == ErrorKind::WouldBlock {
+                //     0
+                // } else {
+                println!("send_bytes error: {:?}", e);
+                return Err(Error::UnixWrite);
             }
         };
 
