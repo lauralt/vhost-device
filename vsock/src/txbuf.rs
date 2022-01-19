@@ -1,5 +1,6 @@
 use super::vhu_vsock::{Error, Result, CONN_TX_BUF_SIZE};
 use std::{io::Write, num::Wrapping};
+use vm_memory::{VolatileSlice, bitmap::BitmapSlice};
 
 #[derive(Debug)]
 pub struct LocalTxBuf {
@@ -28,7 +29,8 @@ impl LocalTxBuf {
 
     /// Add new data to the tx buffer, push all or none.
     /// Returns LocalTxBufFull error if space not sufficient.
-    pub(crate) fn push(&mut self, data_buf: &[u8]) -> Result<()> {
+    pub(crate) fn push <'a, B: BitmapSlice>
+        (&mut self, data_buf: &VolatileSlice<B>) -> Result<()> {
         if CONN_TX_BUF_SIZE as usize - self.len() < data_buf.len() {
             // Tx buffer is full
             return Err(Error::LocalTxBufFull);
@@ -39,11 +41,16 @@ impl LocalTxBuf {
 
         // Check if we can fit the data buffer between head and end of buffer
         let len = std::cmp::min(CONN_TX_BUF_SIZE as usize - tail_idx, data_buf.len());
-        self.buf[tail_idx..tail_idx + len].copy_from_slice(&data_buf[..len]);
+
+        // self.buf[tail_idx..tail_idx + len].copy_to(data_buf);
+        let txbuf = &mut self.buf[tail_idx..tail_idx + len];
+        data_buf.copy_to(txbuf);
 
         // Check if there is more data to be wrapped around
         if len < data_buf.len() {
-            self.buf[..(data_buf.len() - len)].copy_from_slice(&data_buf[len..]);
+            // self.buf[..(data_buf.len() - len)].copy_from_slice(&data_buf[len..]);
+            let remain_txbuf = &mut self.buf[..(data_buf.len() - len)];
+            data_buf.copy_to(remain_txbuf);
         }
 
         // Increment tail by the amount of data that has been added to the buffer

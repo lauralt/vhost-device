@@ -282,10 +282,9 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     fn send_bytes <'a, B: BitmapSlice>
         (&self, buf: &VolatileSlice<B>) -> Result<()> {
         if !self.tx_buf.is_empty() {
-            let bytes = buf.as_ptr();
             // Data is already present in the buffer and the backend
             // is waiting for a EPOLLOUT event to flush it
-            return self.tx_buf.push(bytes);
+            return self.tx_buf.push(buf);
         }
 
         // if let Ok(read_cnt) = buf.read_from(0, &mut self.stream, max_read_len) {
@@ -309,7 +308,7 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
         self.rx_queue.enqueue(RxOps::CreditUpdate);
 
         if written_count != buf.len() {
-            return self.tx_buf.push(&buf[written_count..]);
+            return self.tx_buf.push(buf);
         }
 
         Ok(())
