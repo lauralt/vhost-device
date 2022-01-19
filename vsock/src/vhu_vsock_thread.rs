@@ -383,9 +383,8 @@ impl VhostUserVsockThread {
 
             let used_len =
                 match VsockPacket::from_rx_virtq_chain(mem.deref(), &mut avail_desc) {
-                    Ok(pkt) => {
-                        let mut mpkt = pkt;
-                        let res = self.thread_backend.recv_pkt(&mut mpkt);
+                    Ok(mut pkt) => {
+                        let res = self.thread_backend.recv_pkt(&mut pkt);
                         if res.is_ok() {
                             pkt.header().len() + pkt.len() as usize
                         } else {

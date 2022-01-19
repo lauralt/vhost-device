@@ -519,12 +519,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ff512178285488516ed85f15b5d0113a7cdb89e9e8a760b269ae4f02b84bd6b"
 
 [[package]]
-name = "virtio-devices"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b48f0d43ce075a159555c22785ea8739cdb33ef6db475771e02585b436b8f97e"
-
-[[package]]
 name = "virtio-queue"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -539,11 +533,8 @@ dependencies = [
 name = "virtio-vsock"
 version = "0.1.0"
 dependencies = [
- "log",
- "virtio-devices",
  "virtio-queue",
  "vm-memory",
- "vmm-sys-util",
 ]
 
 [[package]]

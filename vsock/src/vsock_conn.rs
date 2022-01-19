@@ -118,8 +118,7 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     /// Process a vsock packet that is meant for this connection.
     /// Forward data to the host-side application if the vsock packet
     /// contains a RW operation.
-    pub(crate) fn recv_pkt<'a, B: BitmapSlice>
-        (&mut self, pkt: &'a mut VsockPacket<'a, B>)
+    pub(crate) fn recv_pkt<B: BitmapSlice>(&mut self, pkt: &mut VsockPacket<B>)
          -> Result<()> {
         // Initialize all fields in the packet header
         self.init_pkt(pkt);
@@ -202,8 +201,8 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     ///
     /// Returns:
     /// - always `Ok(())` to indicate that the packet has been consumed
-    pub(crate) fn send_pkt<'a, B: BitmapSlice>
-        (&mut self, pkt:  &VsockPacket<'a, B>) -> Result<()>
+    pub(crate) fn send_pkt<B: BitmapSlice>
+        (&mut self, pkt:  &VsockPacket<B>) -> Result<()>
     {
         // Update peer credit information
         self.peer_buf_alloc = pkt.buf_alloc();
@@ -279,8 +278,7 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     /// Returns:
     /// - Ok(cnt) where cnt is the number of bytes written to the stream
     /// - Err(Error::UnixWrite) if there was an error writing to the stream
-    fn send_bytes <'a, B: BitmapSlice>
-        (&self, buf: &VolatileSlice<B>) -> Result<()> {
+    fn send_bytes<B: BitmapSlice>(&mut self, buf: &VolatileSlice<B>) -> Result<()> {
         if !self.tx_buf.is_empty() {
             // Data is already present in the buffer and the backend
             // is waiting for a EPOLLOUT event to flush it
@@ -315,9 +313,9 @@ impl<S: AsRawFd + Read + Write> VsockConnection<S> {
     }
 
     /// Initialize all header fields in the vsock packet.
-    fn init_pkt<'a, B:BitmapSlice>
-        (&self, pkt: &'a mut VsockPacket<'a, B>) ->
-        &'a mut VsockPacket<'a, B>
+    fn init_pkt<'a, 'b, B: BitmapSlice>
+        (&self, pkt: &'a mut VsockPacket<'b, B>) ->
+        &'a mut VsockPacket<'b, B>
     {
         // Zero out the packet header
         // for b in pkt.hdr_mut() {

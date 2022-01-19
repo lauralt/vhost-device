@@ -67,8 +67,8 @@ impl VsockThreadBackend {
     /// Returns:
     /// - `Ok(())` if the packet was successfully filled in
     /// - `Err(Error::EmptyBackendRxQ) if there was no available data
-    pub(crate) fn recv_pkt<'a, B: BitmapSlice>
-        (&mut self, pkt: &'a mut VsockPacket<'a, B>) -> Result<()> {
+    pub(crate) fn recv_pkt<B: BitmapSlice>
+        (&mut self, pkt: &mut VsockPacket<B>) -> Result<()> {
         // Pop an event from the backend_rxq
         let key = match self.backend_rxq.pop_front() {
             Some(cmk) => cmk,
@@ -127,8 +127,8 @@ impl VsockThreadBackend {
     ///
     /// Returns:
     /// - always `Ok(())` if packet has been consumed correctly
-    pub(crate) fn send_pkt<'a, B: BitmapSlice>
-        (&mut self, pkt: &VsockPacket<'a, B>) -> Result<()> {
+    pub(crate) fn send_pkt<B: BitmapSlice>
+        (&mut self, pkt: &VsockPacket<B>) -> Result<()> {
         let key = ConnMapKey::new(pkt.dst_port(), pkt.src_port());
 
         // TODO: Rst if packet has unsupported type
@@ -197,8 +197,8 @@ impl VsockThreadBackend {
     /// Attempts to connect to a host side unix socket listening on a path
     /// corresponding to the destination port as follows:
     /// - "{self.host_sock_path}_{local_port}""
-    fn handle_new_guest_conn<'a, B: BitmapSlice>
-        (&mut self, pkt: &VsockPacket<'a, B>) {
+    fn handle_new_guest_conn<B: BitmapSlice>
+        (&mut self, pkt: &VsockPacket<B>) {
         let port_path = format!("{}_{}", self.host_socket_path, pkt.dst_port());
 
         UnixStream::connect(port_path)

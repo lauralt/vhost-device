@@ -29,8 +29,7 @@ impl LocalTxBuf {
 
     /// Add new data to the tx buffer, push all or none.
     /// Returns LocalTxBufFull error if space not sufficient.
-    pub(crate) fn push <'a, B: BitmapSlice>
-        (&mut self, data_buf: &VolatileSlice<B>) -> Result<()> {
+    pub(crate) fn push <B: BitmapSlice>(&mut self, data_buf: &VolatileSlice<B>) -> Result<()> {
         if CONN_TX_BUF_SIZE as usize - self.len() < data_buf.len() {
             // Tx buffer is full
             return Err(Error::LocalTxBufFull);
