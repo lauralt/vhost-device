@@ -11,7 +11,7 @@ use super::{
 };
 use log::info;
 use std::{
-    io::{ErrorKind, Read, Write},
+    io::{Read, Write},
     num::Wrapping,
     os::unix::prelude::{AsRawFd, RawFd},
 };
